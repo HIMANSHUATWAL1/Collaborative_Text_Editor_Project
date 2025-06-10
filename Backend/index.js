@@ -85,6 +85,32 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("languageUpdate", language);
   });
 
+  socket.on(
+    "compileCode",
+    async ({ code, roomId, language, version, input }) => {
+      if (rooms.has(roomId)) {
+        try {
+          const response = await axios.post(
+            "https://emkc.org/api/v2/piston/execute",
+            {
+              language,
+              version,
+              files: [{ content: code }],
+              stdin: input,
+            }
+          );
+
+          rooms.get(roomId).output = response.data.run.output;
+          io.to(roomId).emit("codeResponse", response.data);
+        } catch (err) {
+          console.error("Code compilation error:", err.message);
+          socket.emit("codeResponse", { run: { output: "Error running code." } });
+        }
+      }
+    }
+  );
+
+  
   // AI Suggestion Handler with Rate Limiter
   let lastApiCallTime = 0;
   socket.on("getCohereSuggestion", async ({ roomId, prompt }) => {
